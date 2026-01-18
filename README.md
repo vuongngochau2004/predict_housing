@@ -14,8 +14,6 @@
 6. [Cách Sử Dụng](#-cách-sử-dụng)
 7. [Bước Tiếp Theo](#-bước-tiếp-theo)
 
----
-
 ## 🎯 Tổng Quan Dự Án
 
 ### Vấn Đề

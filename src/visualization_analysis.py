@@ -195,8 +195,8 @@ def plot_price_distribution(df):
     axes[1, 1].set_ylabel('log(Giá bán)', fontsize=12)
     
     plt.tight_layout()
-    plt.savefig('1_price_distribution.png', dpi=300, bbox_inches='tight')
-    print("✅ Đã lưu: 1_price_distribution.png")
+    plt.savefig('outputs/1_price_distribution.png', dpi=300, bbox_inches='tight')
+    print("✅ Đã lưu: outputs/1_price_distribution.png")
     plt.show()
     
     # In thống kê
@@ -268,8 +268,8 @@ def plot_price_vs_area_by_city(df):
     axes[1].grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig('2_price_vs_area_by_city.png', dpi=300, bbox_inches='tight')
-    print("✅ Đã lưu: 2_price_vs_area_by_city.png")
+    plt.savefig('outputs/2_price_vs_area_by_city.png', dpi=300, bbox_inches='tight')
+    print("✅ Đã lưu: outputs/2_price_vs_area_by_city.png")
     plt.show()
     
     # In thống kê theo thành phố
@@ -326,8 +326,8 @@ def plot_correlation_heatmap(df):
     
     plt.title('Correlation Heatmap của các Features Numerical', fontsize=16, weight='bold', pad=20)
     plt.tight_layout()
-    plt.savefig('3_correlation_heatmap.png', dpi=300, bbox_inches='tight')
-    print("✅ Đã lưu: 3_correlation_heatmap.png")
+    plt.savefig('outputs/3_correlation_heatmap.png', dpi=300, bbox_inches='tight')
+    print("✅ Đã lưu: outputs/3_correlation_heatmap.png")
     plt.show()
     
     # In top correlations với Giá bán
@@ -388,8 +388,8 @@ def plot_missing_data(df):
         plt.text(v + 1, i, f'{v:.1f}%', va='center')
     
     plt.tight_layout()
-    plt.savefig('4_missing_data.png', dpi=300, bbox_inches='tight')
-    print("✅ Đã lưu: 4_missing_data.png")
+    plt.savefig('outputs/4_missing_data.png', dpi=300, bbox_inches='tight')
+    print("✅ Đã lưu: outputs/4_missing_data.png")
     plt.show()
 
 
@@ -403,7 +403,7 @@ if __name__ == "__main__":
     print("="*60)
     
     # Load data
-    filepath = 'gia_nha.csv'
+    filepath = 'data/gia_nha.csv'
     df = load_and_clean_data(filepath)
     
     # Visualization 1: Phân phối giá

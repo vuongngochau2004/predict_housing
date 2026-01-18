@@ -8,10 +8,10 @@ import numpy as np
 # FILE PATHS
 # ============================================================================
 
-RAW_DATA_PATH = 'gia_nha.csv'
-PROCESSED_DATA_PATH = 'gia_nha_processed_ml_ready.csv'
-TRAIN_DATA_PATH = 'gia_nha_train.csv'
-TEST_DATA_PATH = 'gia_nha_test.csv'
+RAW_DATA_PATH = 'data/gia_nha.csv'
+PROCESSED_DATA_PATH = 'data/gia_nha_processed_ml_ready.csv'
+TRAIN_DATA_PATH = 'data/gia_nha_train.csv'
+TEST_DATA_PATH = 'data/gia_nha_test.csv'
 
 # ============================================================================
 # DATA CLEANING
