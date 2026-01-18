@@ -1,5 +1,6 @@
 """
 🏠 Streamlit Demo: House Price Prediction
+Updated to work with cleaned feature names
 """
 
 import streamlit as st
@@ -32,18 +33,26 @@ def load_model():
 
 @st.cache_data
 def load_metadata():
-    """Load feature names and metrics"""
+    """Load feature names, metrics, and column mapping"""
     with open('models/feature_names.json', 'r', encoding='utf-8') as f:
         feature_names = json.load(f)
     with open('models/metrics.json', 'r', encoding='utf-8') as f:
         metrics = json.load(f)
-    return feature_names, metrics
+    
+    # Load column mapping if exists
+    col_mapping = {}
+    if os.path.exists('models/column_mapping.json'):
+        with open('models/column_mapping.json', 'r', encoding='utf-8') as f:
+            col_mapping = json.load(f)
+    
+    return feature_names, metrics, col_mapping
 
 @st.cache_data
-def load_reference_data():
-    """Load data for reference (city prices, etc)"""
-    df = pd.read_csv('data/gia_nha_train.csv')
-    return df
+def load_encoders():
+    """Load encoders for inference"""
+    if os.path.exists('models/encoders.joblib'):
+        return joblib.load('models/encoders.joblib')
+    return {}
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -56,64 +65,72 @@ def format_price(price_vnd):
     else:
         return f"{price_vnd/1e6:.0f} triệu VND"
 
-def create_input_features(inputs, feature_names, ref_df):
+def clean_col_name(name):
+    """Clean column name like in training"""
+    import re
+    new_col = name.replace('(', '_').replace(')', '_').replace(' ', '_')
+    new_col = new_col.replace('/', '_').replace(',', '_').replace('.', '_')
+    new_col = re.sub(r'[^a-zA-Z0-9_]', '', new_col)
+    new_col = re.sub(r'_+', '_', new_col).strip('_')
+    return new_col
+
+def create_input_features(inputs, feature_names, encoders, col_mapping):
     """Create feature vector from user inputs"""
-    # Start with zeros
-    features = {name: 0.0 for name in feature_names}
+    # Start with zeros for all cleaned feature names
+    cleaned_features = [clean_col_name(f) for f in feature_names]
+    features = {name: 0.0 for name in cleaned_features}
+    
+    # Helper to set feature by original name
+    def set_feature(orig_name, value):
+        clean_name = clean_col_name(orig_name)
+        if clean_name in features:
+            features[clean_name] = value
     
     # Basic numeric features
-    features['Diện tích (m2)'] = inputs['dien_tich']
-    features['Chiều ngang (m)'] = inputs['chieu_ngang']
-    features['Chiều dài (m)'] = inputs['chieu_dai']
-    features['Số phòng ngủ'] = inputs['so_phong_ngu']
-    features['Số phòng vệ sinh'] = inputs['so_phong_ve_sinh']
-    features['Số tầng'] = inputs['so_tang']
+    set_feature('Diện tích (m2)', inputs['dien_tich'])
+    set_feature('Chiều ngang (m)', inputs['chieu_ngang'])
+    set_feature('Chiều dài (m)', inputs['chieu_dai'])
+    set_feature('Số phòng ngủ', inputs['so_phong_ngu'])
+    set_feature('Số phòng vệ sinh', inputs['so_phong_ve_sinh'])
+    set_feature('Số tầng', inputs['so_tang'])
     
     # Engineered features
-    features['Tổng_phòng'] = inputs['so_phong_ngu'] + inputs['so_phong_ve_sinh']
-    features['Aspect_ratio'] = inputs['chieu_ngang'] / max(inputs['chieu_dai'], 0.1)
-    features['Diện_tích_per_phòng'] = inputs['dien_tich'] / max(features['Tổng_phòng'], 1)
+    tong_phong = inputs['so_phong_ngu'] + inputs['so_phong_ve_sinh']
+    set_feature('Tổng_phòng', tong_phong)
+    set_feature('Aspect_ratio', inputs['chieu_ngang'] / max(inputs['chieu_dai'], 0.1))
+    set_feature('Diện_tích_per_phòng', inputs['dien_tich'] / max(tong_phong, 1))
+    
+    # Log transformed features
+    set_feature('Diện tích (m2)_log', np.log1p(inputs['dien_tich']))
     
     # One-hot encoding for Loại hình
-    loai_hinh_cols = [c for c in feature_names if c.startswith('Loại hình_')]
-    for col in loai_hinh_cols:
-        if inputs['loai_hinh'] in col:
-            features[col] = True
+    loai_hinh_map = {
+        "Nhà ngõ, hẻm": "Loi_hnh_Nh_ng_hm",
+        "Nhà mặt phố, mặt tiền": "Loi_hnh_Nh_mt_ph_mt_tin",
+        "Nhà phố liền kề": "Loi_hnh_Nh_ph_lin_k",
+        "Biệt thự": "Loi_hnh_Bit_th"
+    }
+    for name, clean_name in loai_hinh_map.items():
+        if clean_name in features:
+            features[clean_name] = 1.0 if inputs['loai_hinh'] == name else 0.0
     
     # One-hot encoding for Hướng
-    huong_cols = [c for c in feature_names if c.startswith('Hướng_')]
-    for col in huong_cols:
-        if inputs['huong'] in col:
-            features[col] = True
+    huong_map = {
+        "Đông": "Hng_ng", "Tây": "Hng_Ty", "Nam": "Hng_Nam", "Bắc": "Hng_Bc",
+        "Đông Nam": "Hng_ng_Nam", "Đông Bắc": "Hng_ng_Bc", 
+        "Tây Nam": "Hng_Ty_Nam", "Tây Bắc": "Hng_Ty_Bc"
+    }
+    for name, clean_name in huong_map.items():
+        if clean_name in features:
+            features[clean_name] = 1.0 if inputs['huong'] == name else 0.0
     
-    # One-hot encoding for Giấy tờ
-    giay_to_cols = [c for c in feature_names if c.startswith('Giấy tờ pháp lý_')]
-    for col in giay_to_cols:
-        if inputs['giay_to'] in col:
-            features[col] = True
+    # Target encoding for location (use location factor as proxy)
+    location_value = inputs.get('location_encoded', 5e9)
+    set_feature('Thành phố_encoded', location_value)
+    set_feature('Phường/Xã_encoded', location_value)
     
-    # One-hot encoding for Nội thất
-    noi_that_cols = [c for c in feature_names if c.startswith('Tình trạng nội thất_')]
-    for col in noi_that_cols:
-        if inputs['noi_that'] in col:
-            features[col] = True
-    
-    # Target encoding for Thành phố
-    if 'Thành phố_encoded' in feature_names:
-        # Use average from training data
-        city_avg = ref_df.groupby('Thành phố_encoded').size().index.mean()
-        features['Thành phố_encoded'] = inputs.get('thanh_pho_encoded', city_avg)
-    
-    # Target encoding for Phường/Xã
-    if 'Phường/Xã_encoded' in feature_names:
-        phuong_avg = ref_df.groupby('Phường/Xã_encoded').size().index.mean() if 'Phường/Xã_encoded' in ref_df.columns else 5e9
-        features['Phường/Xã_encoded'] = phuong_avg
-    
-    # Log transformed features (will be computed from prediction)
-    features['Diện tích (m2)_log'] = np.log1p(inputs['dien_tich'])
-    
-    # Return as DataFrame with correct column order
-    return pd.DataFrame([features])[feature_names]
+    # Create DataFrame with cleaned column names
+    return pd.DataFrame([features])[cleaned_features]
 
 # ============================================================================
 # MAIN APP
@@ -127,25 +144,27 @@ def main():
     # Load resources
     try:
         model = load_model()
-        feature_names, metrics = load_metadata()
-        ref_df = load_reference_data()
+        feature_names, metrics, col_mapping = load_metadata()
+        encoders = load_encoders()
     except Exception as e:
         st.error(f"❌ Lỗi load model: {e}")
-        st.info("Hãy chạy `python src/train_model.py` trước!")
+        st.info("Hãy chạy `make train` trước!")
         return
     
     # Sidebar - Model info
     with st.sidebar:
         st.header("📊 Thông Tin Model")
-        st.metric("MAE", f"{metrics['mae_billion']:.2f} tỷ")
-        st.metric("R² Score", f"{metrics['r2']:.3f}")
-        st.metric("MAPE", f"{metrics['mape']:.1f}%")
+        best_model = metrics.get('best_model', 'Unknown')
+        st.info(f"🏆 Best: **{best_model}**")
+        st.metric("R² Score", f"{metrics.get('r2', 0):.4f}")
+        st.metric("MAE", f"{metrics.get('mae_billion', 0):.2f} tỷ")
+        st.metric("MAPE", f"{metrics.get('mape', 0):.1f}%")
         
         st.divider()
-        st.markdown("**Được train trên:**")
+        st.markdown("**Trained on:**")
         st.markdown("- 4,397 căn nhà")
         st.markdown("- 33 features")
-        st.markdown("- RandomForest model")
+        st.markdown("- Smoothed K-Fold TE")
     
     # Main content - Input form
     st.header("📝 Nhập Thông Tin Căn Nhà")
@@ -176,34 +195,24 @@ def main():
             "Không xác định", "Đông", "Tây", "Nam", "Bắc",
             "Đông Nam", "Đông Bắc", "Tây Nam", "Tây Bắc"
         ])
-        giay_to = st.selectbox("Giấy tờ pháp lý", [
-            "Đã có sổ", "Đang chờ sổ", "Sổ chung / công chứng vi bằng", "Không có sổ"
-        ])
-        noi_that = st.selectbox("Tình trạng nội thất", [
-            "Không xác định", "Hoàn thiện cơ bản", "Nội thất đầy đủ", "Nội thất cao cấp"
-        ])
     
     # Location price factor
     st.subheader("📍 Vị Trí (Ảnh hưởng lớn đến giá)")
     location_factor = st.slider(
-        "Mức độ đắt đỏ của khu vực (1=Tỉnh lẻ, 5=Trung tâm HN/HCM)",
-        min_value=1, max_value=5, value=3
+        "Mức độ đắt đỏ của khu vực",
+        min_value=1, max_value=5, value=3,
+        help="1=Tỉnh lẻ, 2=Ngoại thành, 3=Thành phố cấp 2, 4=HN/HCM ngoại thành, 5=HN/HCM trung tâm"
     )
     
-    # Map location factor to approximate encoded value
+    # Map location factor to encoded value
     location_encoded_map = {
-        1: 2e9,   # Tỉnh lẻ
-        2: 4e9,   # Ngoại thành
-        3: 6e9,   # Thành phố cấp 2
-        4: 10e9,  # HN/HCM ngoại thành
-        5: 15e9   # HN/HCM trung tâm
+        1: 2e9, 2: 4e9, 3: 6e9, 4: 10e9, 5: 15e9
     }
     
     st.divider()
     
     # Predict button
     if st.button("🎯 Dự Đoán Giá", type="primary", use_container_width=True):
-        # Prepare inputs
         inputs = {
             'dien_tich': dien_tich,
             'chieu_ngang': chieu_ngang,
@@ -213,14 +222,12 @@ def main():
             'so_tang': so_tang,
             'loai_hinh': loai_hinh,
             'huong': huong,
-            'giay_to': giay_to,
-            'noi_that': noi_that,
-            'thanh_pho_encoded': location_encoded_map[location_factor]
+            'location_encoded': location_encoded_map[location_factor]
         }
         
         try:
             # Create feature vector
-            X = create_input_features(inputs, feature_names, ref_df)
+            X = create_input_features(inputs, feature_names, encoders, col_mapping)
             
             # Predict (log scale)
             y_pred_log = model.predict(X)[0]
@@ -239,35 +246,31 @@ def main():
             with col_result1:
                 st.metric(
                     label="💰 Giá Dự Đoán",
-                    value=format_price(y_pred_vnd),
-                    delta=None
+                    value=format_price(y_pred_vnd)
                 )
             
             with col_result2:
                 price_per_m2 = y_pred_vnd / dien_tich
                 st.metric(
                     label="📊 Giá/m²",
-                    value=format_price(price_per_m2).replace(" VND", "/m²")
+                    value=f"{price_per_m2/1e6:.1f} triệu/m²"
                 )
             
             # Price range
             st.info(f"""
             📈 **Khoảng giá ước tính:** {format_price(y_pred_vnd * 0.85)} - {format_price(y_pred_vnd * 1.15)}
             
-            ⚠️ *Đây chỉ là ước tính dựa trên dữ liệu thị trường. Giá thực tế có thể khác tùy thuộc vào nhiều yếu tố.*
+            ⚠️ *Đây chỉ là ước tính. Giá thực tế phụ thuộc nhiều yếu tố khác.*
             """)
             
         except Exception as e:
             st.error(f"❌ Lỗi dự đoán: {e}")
-            st.exception(e)
+            with st.expander("Chi tiết lỗi"):
+                st.exception(e)
     
     # Footer
     st.divider()
-    st.markdown("""
-    ---
-    **🏠 House Price Prediction Demo**  
-    Built with Streamlit & Scikit-learn | Data: Vietnam Real Estate  
-    """)
+    st.caption("🏠 House Price Prediction | Built with Streamlit & Scikit-learn")
 
 if __name__ == "__main__":
     main()

@@ -56,6 +56,20 @@ def prepare_features(df_train, df_test):
     return X_train, y_train, X_test, y_test, feature_cols
 
 
+def clean_feature_names(df):
+    """Clean feature names for LightGBM compatibility (remove special chars)"""
+    import re
+    new_columns = {}
+    for col in df.columns:
+        # Replace Vietnamese chars and special chars
+        new_col = col.replace('(', '_').replace(')', '_').replace(' ', '_')
+        new_col = new_col.replace('/', '_').replace(',', '_').replace('.', '_')
+        new_col = re.sub(r'[^a-zA-Z0-9_]', '', new_col)
+        new_col = re.sub(r'_+', '_', new_col).strip('_')
+        new_columns[col] = new_col
+    return df.rename(columns=new_columns), new_columns
+
+
 # ============================================================================
 # MODEL DEFINITIONS
 # ============================================================================
@@ -240,14 +254,26 @@ def main():
     # Prepare features
     X_train, y_train, X_test, y_test, feature_cols = prepare_features(df_train, df_test)
     
+    # Clean feature names for LightGBM compatibility
+    print("\n🧹 Cleaning feature names for LightGBM compatibility...")
+    X_train, col_mapping = clean_feature_names(X_train)
+    X_test = X_test.rename(columns=col_mapping)
+    feature_cols = [col_mapping.get(c, c) for c in feature_cols]
+    print(f"   ✅ Cleaned {len(col_mapping)} feature names")
+    
     # Train all models
     trained_models, results = train_all_models(X_train, y_train, X_test, y_test)
     
     # Compare and find best
     best_model_name = print_comparison(results)
     
-    # Save
-    save_models(trained_models, results, feature_cols, best_model_name)
+    # Save (use original feature names for app compatibility)
+    save_models(trained_models, results, list(col_mapping.keys()), best_model_name)
+    
+    # Also save the column mapping
+    with open('models/column_mapping.json', 'w', encoding='utf-8') as f:
+        json.dump(col_mapping, f, ensure_ascii=False, indent=2)
+    print("   ✅ Saved: models/column_mapping.json")
     
     print("\n" + "="*60)
     print("✅ ALL MODELS TRAINED AND SAVED!")
@@ -258,6 +284,7 @@ def main():
     print("  - models/catboost_model.joblib")
     print("  - models/model.joblib (best model)")
     print("  - models/all_metrics.json")
+    print("  - models/column_mapping.json")
     print("="*60)
 
 
