@@ -48,7 +48,6 @@ models/*.pkl
 models/*.h5
 
 # Data files (keep structure but ignore large files)
-data/*.csv
 !data/.gitkeep
 
 # Outputs
