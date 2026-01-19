@@ -277,8 +277,19 @@ streamlit run app.py
             
             # Predict with all models
             predictions = {}
+            cat_cols = ['Hng', 'Tnh_trng_ni_tht']
+            
             for model_name, model in models.items():
-                y_pred = model.predict(X)[0]
+                if model_name == 'RandomForest':
+                    # RandomForest needs numeric data - encode categories
+                    X_rf = X.copy()
+                    for col in cat_cols:
+                        if col in X_rf.columns:
+                            X_rf[col] = X_rf[col].astype('category').cat.codes
+                    y_pred = model.predict(X_rf)[0]
+                else:
+                    # LightGBM and CatBoost can handle categories
+                    y_pred = model.predict(X)[0]
                 predictions[model_name] = max(0.1, y_pred)
             
             # Display results
