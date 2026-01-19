@@ -77,3 +77,9 @@ logs/
 *.bak
 *.tmp
 *.temp
+
+# CatBoost
+catboost_info/
+
+# Model scores
+models/cv_scores.json
