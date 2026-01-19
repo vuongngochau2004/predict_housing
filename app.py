@@ -26,10 +26,18 @@ st.set_page_config(
 # ============================================================================
 
 @st.cache_resource
-def load_model():
-    """Load trained model"""
-    model = joblib.load('models/model.joblib')
-    return model
+def load_models():
+    """Load all trained models"""
+    models = {}
+    model_files = {
+        'LightGBM': 'models/lightgbm_optuna_model.joblib',
+        'RandomForest': 'models/randomforest_optuna_model.joblib',
+        'CatBoost': 'models/catboost_optuna_model.joblib'
+    }
+    for name, path in model_files.items():
+        if os.path.exists(path):
+            models[name] = joblib.load(path)
+    return models
 
 @st.cache_data
 def load_metadata():
@@ -156,7 +164,7 @@ def main():
     
     # Load resources
     try:
-        model = load_model()
+        models = load_models()
         feature_names, metrics, col_mapping = load_metadata()
     except Exception as e:
         st.error(f"❌ Lỗi load model: {e}")
@@ -168,6 +176,10 @@ python src/train_model.py
 # Bước 2: Chạy app
 streamlit run app.py
         """)
+        return
+    
+    if not models:
+        st.error("❌ Không tìm thấy model nào!")
         return
     
     # Sidebar - Model info
@@ -263,33 +275,56 @@ streamlit run app.py
             # Create feature vector
             X = create_input_features(inputs, feature_names, col_mapping)
             
-            # Predict (model outputs directly in tỷ VND)
-            y_pred = model.predict(X)[0]
+            # Predict with all models
+            predictions = {}
+            for model_name, model in models.items():
+                y_pred = model.predict(X)[0]
+                predictions[model_name] = max(0.1, y_pred)
             
-            # Ensure positive prediction
-            y_pred = max(0.1, y_pred)
-            
-            # Display result
+            # Display results
             st.success("✅ Dự đoán thành công!")
             
-            col_result1, col_result2 = st.columns(2)
+            # Show all 3 model predictions
+            st.subheader("📊 Kết Quả Dự Đoán Từ Các Models")
             
-            with col_result1:
+            cols = st.columns(3)
+            model_icons = {'LightGBM': '⚡', 'RandomForest': '🌲', 'CatBoost': '🐱'}
+            model_colors = {'LightGBM': 'blue', 'RandomForest': 'green', 'CatBoost': 'orange'}
+            
+            for i, (model_name, y_pred) in enumerate(predictions.items()):
+                with cols[i]:
+                    icon = model_icons.get(model_name, '🤖')
+                    st.metric(
+                        label=f"{icon} {model_name}",
+                        value=format_price(y_pred)
+                    )
+                    price_per_m2 = y_pred / dien_tich * 1_000_000_000
+                    st.caption(f"📐 {price_per_m2/1e6:.1f} triệu/m²")
+            
+            # Average prediction
+            avg_pred = sum(predictions.values()) / len(predictions)
+            
+            st.divider()
+            col_avg1, col_avg2 = st.columns(2)
+            
+            with col_avg1:
                 st.metric(
-                    label="💰 Giá Dự Đoán",
-                    value=format_price(y_pred)
+                    label="💰 Giá Trung Bình (3 Models)",
+                    value=format_price(avg_pred)
                 )
             
-            with col_result2:
-                price_per_m2 = y_pred / dien_tich * 1_000_000_000  # Convert to VND/m²
+            with col_avg2:
+                avg_price_per_m2 = avg_pred / dien_tich * 1_000_000_000
                 st.metric(
-                    label="📊 Giá/m²",
-                    value=f"{price_per_m2/1e6:.1f} triệu/m²"
+                    label="📊 Giá/m² Trung Bình",
+                    value=f"{avg_price_per_m2/1e6:.1f} triệu/m²"
                 )
             
-            # Price range (±15%)
+            # Price range
+            min_pred = min(predictions.values())
+            max_pred = max(predictions.values())
             st.info(f"""
-            📈 **Khoảng giá ước tính:** {format_price(y_pred * 0.85)} - {format_price(y_pred * 1.15)}
+            📈 **Khoảng giá từ các models:** {format_price(min_pred)} - {format_price(max_pred)}
             
             ⚠️ *Đây chỉ là ước tính dựa trên dữ liệu học máy. Giá thực tế có thể khác.*
             """)
