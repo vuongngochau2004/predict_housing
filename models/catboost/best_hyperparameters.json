@@ -1,19 +1,17 @@
 {
-  "iterations": 897,
-  "learning_rate": 0.0567429944869965,
+  "iterations": 536,
+  "learning_rate": 0.063870888754882,
   "depth": 6,
-  "l2_leaf_reg": 2.733149497165989,
-  "bagging_temperature": 0.8694563496006533,
-  "random_strength": 0.33122573433796654,
-  "border_count": 155,
-  "min_data_in_leaf": 49,
+  "l2_leaf_reg": 3.8642047356679776,
+  "bagging_temperature": 0.3407109098114514,
+  "random_strength": 1.2445438028841713,
+  "border_count": 82,
+  "min_data_in_leaf": 25,
   "loss_function": "RMSE",
   "eval_metric": "R2",
   "random_seed": 42,
   "task_type": "CPU",
+  "nan_mode": "Min",
   "verbose": 100,
-  "cat_features": [
-    "Hướng",
-    "Tình trạng nội thất"
-  ]
+  "cat_features": []
 }

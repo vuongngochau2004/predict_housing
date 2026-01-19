@@ -19,13 +19,7 @@
     "Loại hình_Nhà phố liền kề",
     "Giấy tờ pháp lý_encoded"
   ],
-  "categorical_features": [
-    "Hướng",
-    "Tình trạng nội thất"
-  ],
-  "categorical_feature_indices": [
-    1,
-    7
-  ],
+  "categorical_features": [],
+  "categorical_feature_indices": [],
   "target_column": "Giá"
 }
