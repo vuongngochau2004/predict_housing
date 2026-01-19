@@ -33,8 +33,8 @@ from catboost import CatBoostRegressor, Pool
 # ============================================================================
 
 # Data paths
-TRAIN_DATA_PATH = 'data/train_data.csv'
-TEST_DATA_PATH = 'data/test_data.csv'
+TRAIN_DATA_PATH = 'data/train_data_1.csv'
+TEST_DATA_PATH = 'data/test_data_1.csv'
 
 # Target variable
 TARGET = 'Giá'  # Target column name
