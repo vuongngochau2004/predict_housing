@@ -1,0 +1,19 @@
+{
+  "iterations": 761,
+  "learning_rate": 0.04617553708623624,
+  "depth": 7,
+  "l2_leaf_reg": 0.0024454572615788804,
+  "bagging_temperature": 0.3435785644917263,
+  "random_strength": 2.886845334972833,
+  "border_count": 109,
+  "min_data_in_leaf": 16,
+  "loss_function": "RMSE",
+  "eval_metric": "R2",
+  "random_seed": 42,
+  "task_type": "CPU",
+  "verbose": 100,
+  "cat_features": [
+    "Hướng",
+    "Tình trạng nội thất"
+  ]
+}
