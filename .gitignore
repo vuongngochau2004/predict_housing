@@ -43,7 +43,7 @@ uv.lock
 .DS_Store
 
 # Models (large files)
-models/*.joblib
+# models/*.joblib
 models/*.pkl
 models/*.h5
 
