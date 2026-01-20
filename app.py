@@ -16,7 +16,7 @@ import time
 # ============================================================================
 
 st.set_page_config(
-    page_title="🏠 Dự Đoán Giá Nhà",
+    page_title="Dự Đoán Giá Nhà",
     page_icon="🏠",
     layout="wide",
     initial_sidebar_state="expanded"
